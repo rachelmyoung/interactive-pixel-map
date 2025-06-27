@@ -107,13 +107,14 @@ let mode = 'pixel';
 const tooltip = document.getElementById('tooltip');
 
 function getColor(val) {
-  if (val === null || val === undefined || isNaN(val)) return null;  // make NA transparent
+  if (val === null || val === undefined || isNaN(val) || val === 0) return null;  // Treat 0 as NA
   return val > 80 ? '#800026' :
          val > 60 ? '#BD0026' :
          val > 40 ? '#E31A1C' :
          val > 20 ? '#FC4E2A' :
                     '#FFEDA0';
 }
+
 
 function setMode(m) {
   mode = m;
