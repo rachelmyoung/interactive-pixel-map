@@ -172,8 +172,7 @@ function loadLayer() {
             color: "#333",
             fillOpacity: color ? 0.7 : 0.0  // fully transparent if NA
           };
-        }
-        ),
+        },
       onEachFeature: (feature, layer) => {
         layer.on("mousemove", e => {
           showTooltip(
