@@ -22,26 +22,17 @@
       font-weight: 600;
     }
 
-    #map {
-      background-color: white;
-    }
-
     #map-container {
       position: relative;
-      height: 600px;         /* fixed height */
-      max-width: 900px;      /* max width */
-      margin: 1.5rem auto;   /* center horizontally */
+      height: 90vh;
       background: white;
-      border-radius: 8px;    /* keep rounded corners if you want */
-      /* no border, no shadow */
     }
-    
+
     #map {
       height: 100%;
       width: 100%;
-      border-radius: 8px;    /* keep if you want rounded corners */
     }
-    
+
     .floating-tooltip {
       position: absolute;
       background: #ffffff;
@@ -51,7 +42,7 @@
       pointer-events: none;
       font-size: 0.9rem;
       display: none;
-      z-index: 10000; /* <-- bump this up */
+      z-index: 10000;
     }
 
     .button-group {
@@ -79,114 +70,60 @@
     .button-group button:hover {
       background: #f0f0f0;
     }
-
-    
   </style>
 </head>
 <body>
-  <header>
-    Interactive Climate Map
-  </header>
-    
-  <div id="map-container">
-    <div id="scatter-container" style="
-      display: none;
-      position: absolute;
-      background: white;
-      border: 1px solid #ccc;
-      border-radius: 6px;
-      padding: 10px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-      z-index: 10000;
-      width: 160px;
-      height: 120px;
-    ">
-      <canvas id="scatter-canvas" width="150" height="100"></canvas>
-    </div>
-    <div id="map"></div>
-    <div class="button-group">
-      <button onclick="setMode('pixel')">Pixel View</button>
-      <button onclick="setMode('county')">County View</button>
-      <button onclick="setMode('state')">State View</button>
-    </div>
+<div id="map-container">
+  <div id="map"></div>
+  <div id="tooltip" class="floating-tooltip"></div>
+  <div class="button-group">
+    <button onclick="setMode('pixel')">Pixel View</button>
+    <button onclick="setMode('county')">County View</button>
+    <button onclick="setMode('state')">State View</button>
   </div>
-
-<div class="floating-tooltip" id="tooltip"></div>
+  <div id="scatter-container" style="display:none;position:absolute;background:white;border:1px solid #ccc;border-radius:6px;padding:10px;box-shadow:0 2px 8px rgba(0,0,0,0.2);z-index:10000;width:160px;height:120px;">
+    <canvas id="scatter-canvas" width="150" height="100"></canvas>
+  </div>
+</div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/leaflet-ajax/dist/leaflet.ajax.min.js"></script>
+<script src="https://d3js.org/d3-color.v3.min.js"></script>
 
 <script>
 const map = L.map('map', {
   zoomSnap: 0.25,
   center: [39, -98],
   zoom: 4,
-  layers: [],       // start with no base tile layer
+  layers: [],
   zoomControl: true
 });
 
-// Optional: Add country boundary lines GeoJSON with no fill
 fetch('country_borders.geojson')
   .then(res => res.json())
   .then(data => {
     L.geoJSON(data, {
       style: {
-        color: '#333',    // dark gray lines
+        color: '#333',
         weight: 1,
-        fillOpacity: 0    // no fill
+        fillOpacity: 0
       }
     }).addTo(map);
   });
 
 let currentLayer = null;
 let mode = 'pixel';
-let countyHoverLayer = null;  // <--- add this here
-
 const tooltip = document.getElementById('tooltip');
 
 function getColor(val) {
   if (val === null || val === undefined || isNaN(val) || val === 0) return null;
-  return interpolateColor(val, 0, 100);
+  const scale = d3.scaleLinear().domain([0, 100]).range(["#FFEDA0", "#800026"]);
+  return scale(val);
 }
 
 function setMode(m) {
   mode = m;
   loadLayer();
-}
-  
-function loadCountyHoverLayer() {
-  if (countyHoverLayer) {
-    map.removeLayer(countyHoverLayer);
-  }
-
-  countyHoverLayer = new L.GeoJSON.AJAX("county_averages.geojson", {
-    style: {
-      fillOpacity: 0,
-      weight: 1,
-      color: '#333',
-      dashArray: '3',
-      interactive: true,
-    },
-    onEachFeature: (feature, layer) => {
-      layer.on('mouseover', e => {
-        layer.setStyle({
-          fillOpacity: 0.3,
-          fillColor: '#666',
-          weight: 2,
-        });
-        showTooltip(
-          `County: <strong>${feature.properties.NAME}</strong><br>` +
-          `Avg value: ${feature.properties.value?.toFixed(2) || 'N/A'}`,
-          e.originalEvent
-        );
-      });
-      layer.on('mouseout', e => {
-        countyHoverLayer.resetStyle(layer);
-        hideTooltip();
-      });
-    }
-  });
-  countyHoverLayer.addTo(map);
 }
 
 function showTooltip(content, event) {
@@ -196,51 +133,58 @@ function showTooltip(content, event) {
   tooltip.style.top = (event.pageY + 15) + 'px';
 }
 
-
 function hideTooltip() {
   tooltip.style.display = 'none';
 }
-  
-function interpolateColor(value, min, max) {
-  // clamp value between min and max
-  if (value <= min) return '#FFEDA0';  // light yellow
-  if (value >= max) return '#800026';  // dark red
 
-  const ratio = (value - min) / (max - min);
+function showScatterplot(stateName, values, x, y) {
+  const container = document.getElementById('scatter-container');
+  container.style.left = (x + 15) + 'px';
+  container.style.top = (y + 15) + 'px';
+  container.style.display = 'block';
 
-  // interpolate RGB channels between light yellow and dark red
-  const start = [255, 237, 160];  // #FFEDA0
-  const end = [128, 0, 38];       // #800026
+  const canvas = document.getElementById('scatter-canvas');
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  const r = Math.round(start[0] + ratio * (end[0] - start[0]));
-  const g = Math.round(start[1] + ratio * (end[1] - start[1]));
-  const b = Math.round(start[2] + ratio * (end[2] - start[2]));
+  ctx.fillStyle = '#BD0026';
+  values.forEach(([px, py]) => {
+    ctx.beginPath();
+    ctx.arc(px * canvas.width, py * canvas.height, 2, 0, 2 * Math.PI);
+    ctx.fill();
+  });
 
-  return `rgb(${r},${g},${b})`;
+  ctx.fillStyle = '#333';
+  ctx.font = '10px Inter';
+  ctx.fillText(stateName, 5, 10);
 }
-  
+
+function hideScatterplot() {
+  document.getElementById('scatter-container').style.display = 'none';
+}
+
 function loadLayer() {
   if (currentLayer) map.removeLayer(currentLayer);
 
   if (mode === 'pixel') {
-    fetch("us_grid_data_conus_gradient.json")
+    fetch("us_grid_data.json")
       .then(res => res.json())
       .then(data => {
         const layer = L.layerGroup();
         data.forEach(d => {
-          const rect =L.rectangle([
-                [d.lat, d.lng],
-                [d.lat + 0.25, d.lng + 0.25]
-              ], {
-                fillColor: getColor(d.value),
-                color: 'none',            // no border stroke color
-                fillOpacity: 0.7,
-                weight: 0
-              });
+          const rect = L.rectangle([
+            [d.lat, d.lng],
+            [d.lat + 0.25, d.lng + 0.25]
+          ], {
+            fillColor: getColor(d.value),
+            color: 'none',
+            fillOpacity: 0.7,
+            weight: 0
+          });
 
           rect.on("mousemove", e => {
             showTooltip(
-              `Pixel value: <strong>${d.value}</strong><br>Lat: ${d.lat}, Lng: ${d.lng}`, 
+              `Pixel value: <strong>${d.value}</strong><br>Lat: ${d.lat}, Lng: ${d.lng}`,
               e.originalEvent
             );
           });
@@ -254,19 +198,19 @@ function loadLayer() {
   } else if (mode === 'county') {
     const countyLayer = new L.GeoJSON.AJAX("county_averages.geojson", {
       style: feature => {
-          const color = getColor(feature.properties.value);
-          return {
-            fillColor: color || "#000000",  // fallback (won't matter since opacity is 0)
-            weight: 0.5,
-            color: "#333",
-            fillOpacity: color ? 0.7 : 0.0  // fully transparent if NA
-          };
-        },
+        const color = getColor(feature.properties.value);
+        return {
+          fillColor: color || "#000000",
+          weight: 0.5,
+          color: "#333",
+          fillOpacity: color ? 0.7 : 0.0
+        };
+      },
       onEachFeature: (feature, layer) => {
         layer.on("mousemove", e => {
           showTooltip(
             `County: <strong>${feature.properties.NAME}</strong><br>` +
-            `Avg value: ${feature.properties.value?.toFixed(2) || 'N/A'}`, 
+            `Avg value: ${feature.properties.value?.toFixed(2) || 'N/A'}`,
             e.originalEvent
           );
         });
@@ -276,59 +220,43 @@ function loadLayer() {
     currentLayer = countyLayer;
     countyLayer.addTo(map);
   } else if (mode === 'state') {
-  const stateLayer = new L.GeoJSON.AJAX("state_averages.geojson", {
-    style: feature => ({
-      fillColor: "#fff",
-      weight: 1,
-      color: "#000",
-      fillOpacity: 0
-    }),
-    onEachFeature: (feature, layer) => {
-      layer.on("mousemove", e => {
-        showScatterplot(feature.properties.NAME, e.originalEvent.pageX, e.originalEvent.pageY);
+    fetch("us_grid_data.json")
+      .then(res => res.json())
+      .then(pixels => {
+        fetch("state_averages.geojson")
+          .then(res => res.json())
+          .then(statesGeo => {
+            const stateLayer = L.geoJSON(statesGeo, {
+              style: feature => {
+                const color = getColor(feature.properties.value);
+                return {
+                  fillColor: color || "#ccc",
+                  color: "#333",
+                  weight: 1,
+                  fillOpacity: color ? 0.5 : 0.0
+                };
+              },
+              onEachFeature: (feature, layer) => {
+                layer.on("mousemove", e => {
+                  const bounds = layer.getBounds();
+                  const values = pixels.filter(p =>
+                    p.lng >= bounds.getWest() && p.lng <= bounds.getEast() &&
+                    p.lat >= bounds.getSouth() && p.lat <= bounds.getNorth()
+                  ).map(p => [Math.random(), Math.random()]); // Replace with scaled values
+
+                  showScatterplot(feature.properties.NAME, values, e.originalEvent.pageX, e.originalEvent.pageY);
+                });
+                layer.on("mouseout", hideScatterplot);
+              }
+            });
+            currentLayer = stateLayer;
+            stateLayer.addTo(map);
+          });
       });
-      layer.on("mouseout", hideScatterplot);
-    }
-  });
-  currentLayer = stateLayer;
-  stateLayer.addTo(map);
-}
-}
-
-function showScatterplot(stateName, x, y) {
-  const container = document.getElementById('scatter-container');
-  container.style.left = (x + 15) + 'px';
-  container.style.top = (y + 15) + 'px';
-  container.style.display = 'block';
-
-  const canvas = document.getElementById('scatter-canvas');
-  const ctx = canvas.getContext('2d');
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  // Draw fake points
-  for (let i = 0; i < 30; i++) {
-    const px = Math.random() * canvas.width;
-    const py = Math.random() * canvas.height;
-    ctx.beginPath();
-    ctx.arc(px, py, 2, 0, 2 * Math.PI);
-    ctx.fillStyle = "#BD0026";
-    ctx.fill();
   }
-
-  ctx.fillStyle = "#333";
-  ctx.font = "10px Inter";
-  ctx.fillText(stateName, 5, 10);
 }
 
-function hideScatterplot() {
-  document.getElementById('scatter-container').style.display = 'none';
-}
-
-
-// Load initial view
 loadLayer();
-
 </script>
 </body>
 </html>
-
