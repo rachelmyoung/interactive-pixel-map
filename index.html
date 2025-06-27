@@ -28,14 +28,19 @@
 
     #map-container {
       position: relative;
-      height: calc(100vh - 70px);
+      height: 600px;         /* fixed height */
+      max-width: 900px;      /* max width for nicer embedding */
+      margin: 1.5rem auto;   /* centers horizontally with margin on top/bottom */
       background: white;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
     }
-
+    
     #map {
       height: 100%;
       width: 100%;
-      border: 1px solid #ccc;
+      border-radius: 8px;
     }
 
     .floating-tooltip {
