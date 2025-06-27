@@ -154,6 +154,25 @@ function showScatterplot(stateName, values, x, y) {
     ctx.fill();
   });
 
+  const n = values.length;
+  if (n > 1) {
+    let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
+    values.forEach(([x, y]) => {
+      sumX += x;
+      sumY += y;
+      sumXY += x * y;
+      sumX2 += x * x;
+    });
+    const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+    const intercept = (sumY - slope * sumX) / n;
+
+    ctx.strokeStyle = '#333';
+    ctx.beginPath();
+    ctx.moveTo(0, canvas.height - (intercept * canvas.height));
+    ctx.lineTo(canvas.width, canvas.height - ((slope + intercept) * canvas.height));
+    ctx.stroke();
+  }
+
   ctx.fillStyle = '#333';
   ctx.font = '10px Inter';
   ctx.fillText(stateName, 5, 10);
@@ -244,7 +263,12 @@ function loadLayer() {
                     p.lat >= bounds.getSouth() && p.lat <= bounds.getNorth()
                   ).map(p => [Math.random(), Math.random()]); // Replace with scaled values
 
-                  showScatterplot(feature.properties.NAME, values, e.originalEvent.pageX, e.originalEvent.pageY);
+                  showScatterplot(
+                    `${feature.properties.NAME} (${feature.properties.value?.toFixed(2) || 'N/A'})`,
+                    values,
+                    e.originalEvent.pageX,
+                    e.originalEvent.pageY
+                  );
                 });
                 layer.on("mouseout", hideScatterplot);
               }
