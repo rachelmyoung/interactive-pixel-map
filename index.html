@@ -89,10 +89,25 @@
   </header>
     
   <div id="map-container">
+    <div id="scatter-container" style="
+      display: none;
+      position: absolute;
+      background: white;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      padding: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      z-index: 10000;
+      width: 160px;
+      height: 120px;
+    ">
+      <canvas id="scatter-canvas" width="150" height="100"></canvas>
+    </div>
     <div id="map"></div>
     <div class="button-group">
       <button onclick="setMode('pixel')">Pixel View</button>
       <button onclick="setMode('county')">County View</button>
+      <button onclick="setMode('state')">State View</button>
     </div>
   </div>
 
@@ -260,8 +275,55 @@ function loadLayer() {
     });
     currentLayer = countyLayer;
     countyLayer.addTo(map);
-  }
+  } else if (mode === 'state') {
+  const stateLayer = new L.GeoJSON.AJAX("state_averages.geojson", {
+    style: feature => ({
+      fillColor: "#fff",
+      weight: 1,
+      color: "#000",
+      fillOpacity: 0
+    }),
+    onEachFeature: (feature, layer) => {
+      layer.on("mousemove", e => {
+        showScatterplot(feature.properties.NAME, e.originalEvent.pageX, e.originalEvent.pageY);
+      });
+      layer.on("mouseout", hideScatterplot);
+    }
+  });
+  currentLayer = stateLayer;
+  stateLayer.addTo(map);
 }
+}
+
+function showScatterplot(stateName, x, y) {
+  const container = document.getElementById('scatter-container');
+  container.style.left = (x + 15) + 'px';
+  container.style.top = (y + 15) + 'px';
+  container.style.display = 'block';
+
+  const canvas = document.getElementById('scatter-canvas');
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Draw fake points
+  for (let i = 0; i < 30; i++) {
+    const px = Math.random() * canvas.width;
+    const py = Math.random() * canvas.height;
+    ctx.beginPath();
+    ctx.arc(px, py, 2, 0, 2 * Math.PI);
+    ctx.fillStyle = "#BD0026";
+    ctx.fill();
+  }
+
+  ctx.fillStyle = "#333";
+  ctx.font = "10px Inter";
+  ctx.fillText(stateName, 5, 10);
+}
+
+function hideScatterplot() {
+  document.getElementById('scatter-container').style.display = 'none';
+}
+
 
 // Load initial view
 loadLayer();
