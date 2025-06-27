@@ -151,7 +151,7 @@ function loadLayer() {
   if (currentLayer) map.removeLayer(currentLayer);
 
   if (mode === 'pixel') {
-    fetch("us_grid_data.json")
+    fetch("us_grid_data_conus_gradient.json.json")
       .then(res => res.json())
       .then(data => {
         const layer = L.layerGroup();
