@@ -155,14 +155,15 @@ function loadLayer() {
       .then(data => {
         const layer = L.layerGroup();
         data.forEach(d => {
-          const rect = L.rectangle([
-            [d.lat, d.lng],
-            [d.lat + 0.25, d.lng + 0.25]
-          ], {
-            color: getColor(d.value),
-            fillOpacity: 0.7,
-            weight: 0
-          });
+          const rect =L.rectangle([
+                [d.lat, d.lng],
+                [d.lat + 0.25, d.lng + 0.25]
+              ], {
+                fillColor: getColor(d.value),
+                color: 'none',            // no border stroke color
+                fillOpacity: 0.7,
+                weight: 0
+              });
 
           rect.on("mousemove", e => {
             showTooltip(
