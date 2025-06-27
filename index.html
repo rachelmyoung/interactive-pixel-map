@@ -51,7 +51,6 @@
       right: 20px;
       z-index: 1001;
       background: white;
-      border: 1px solid #ccc;
       border-radius: 6px;
       padding: 6px;
     }
@@ -73,6 +72,7 @@
   </style>
 </head>
 <body>
+<header>Interactive Climate Map</header>
 <div id="map-container">
   <div id="map"></div>
   <div id="tooltip" class="floating-tooltip"></div>
@@ -88,7 +88,7 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/leaflet-ajax/dist/leaflet.ajax.min.js"></script>
-<script src="https://d3js.org/d3-color.v3.min.js"></script>
+<script src="https://d3js.org/d3.v7.min.js"></script>
 
 <script>
 const map = L.map('map', {
@@ -116,8 +116,8 @@ let mode = 'pixel';
 const tooltip = document.getElementById('tooltip');
 
 function getColor(val) {
-  if (val === null || val === undefined || isNaN(val) || val === 0) return null;
-  const scale = d3.scaleLinear().domain([0, 100]).range(["#FFEDA0", "#800026"]);
+  if (val === null || val === undefined || isNaN(val)) return "#ccc";
+  const scale = d3.scaleSequential(d3.interpolateYlOrRd).domain([0, 100]);
   return scale(val);
 }
 
@@ -150,7 +150,7 @@ function showScatterplot(stateName, values, x, y) {
   ctx.fillStyle = '#BD0026';
   values.forEach(([px, py]) => {
     ctx.beginPath();
-    ctx.arc(px * canvas.width, py * canvas.height, 2, 0, 2 * Math.PI);
+    ctx.arc(px * canvas.width, canvas.height - py * canvas.height, 2, 0, 2 * Math.PI);
     ctx.fill();
   });
 
@@ -168,8 +168,8 @@ function showScatterplot(stateName, values, x, y) {
 
     ctx.strokeStyle = '#333';
     ctx.beginPath();
-    ctx.moveTo(0, canvas.height - (intercept * canvas.height));
-    ctx.lineTo(canvas.width, canvas.height - ((slope + intercept) * canvas.height));
+    ctx.moveTo(0, canvas.height - intercept * canvas.height);
+    ctx.lineTo(canvas.width, canvas.height - (slope + intercept) * canvas.height);
     ctx.stroke();
   }
 
@@ -258,10 +258,17 @@ function loadLayer() {
               onEachFeature: (feature, layer) => {
                 layer.on("mousemove", e => {
                   const bounds = layer.getBounds();
-                  const values = pixels.filter(p =>
+                  const statePixels = pixels.filter(p =>
                     p.lng >= bounds.getWest() && p.lng <= bounds.getEast() &&
-                    p.lat >= bounds.getSouth() && p.lat <= bounds.getNorth()
-                  ).map(p => [Math.random(), Math.random()]); // Replace with scaled values
+                    p.lat >= bounds.getSouth() && p.lat <= bounds.getNorth() &&
+                    p.value != null && !isNaN(p.value)
+                  );
+                  const minVal = d3.min(statePixels, d => d.value);
+                  const maxVal = d3.max(statePixels, d => d.value);
+                  const values = statePixels.map(p => [
+                    Math.random(),
+                    (p.value - minVal) / (maxVal - minVal)
+                  ]);
 
                   showScatterplot(
                     `${feature.properties.NAME} (${feature.properties.value?.toFixed(2) || 'N/A'})`,
