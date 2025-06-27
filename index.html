@@ -91,15 +91,25 @@
 
 <script>
 const map = L.map('map', {
-  zoomSnap: 0.25
-}).setView([39, -98], 4);
+  zoomSnap: 0.25,
+  center: [39, -98],
+  zoom: 4,
+  layers: [],       // start with no base tile layer
+  zoomControl: true
+});
 
-// Basemap with faint country lines
-L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-  attribution: '© OpenStreetMap & CARTO',
-  maxZoom: 12,
-  minZoom: 3
-}).addTo(map);
+// Optional: Add country boundary lines GeoJSON with no fill
+fetch('country_borders.geojson')
+  .then(res => res.json())
+  .then(data => {
+    L.geoJSON(data, {
+      style: {
+        color: '#333',    // dark gray lines
+        weight: 1,
+        fillOpacity: 0    // no fill
+      }
+    }).addTo(map);
+  });
 
 let currentLayer = null;
 let mode = 'pixel';
