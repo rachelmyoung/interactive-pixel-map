@@ -1,76 +1,110 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Interactive Pixel Map</title>
-  <meta charset="utf-8" />
+  <meta charset="UTF-8">
+  <title>Interactive Climate Map</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link
-    rel="stylesheet"
-    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-  />
+  <link href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet" />
   <style>
+    body {
+      margin: 0;
+      font-family: 'Inter', sans-serif;
+      background: #ffffff;
+      color: #333;
+    }
+
+    header {
+      padding: 1rem 2rem;
+      background: #ffffff;
+      border-bottom: 1px solid #ddd;
+      font-size: 1.5rem;
+      font-weight: 600;
+    }
+
+    #map-container {
+      position: relative;
+      height: calc(100vh - 70px);
+      background: white;
+    }
+
     #map {
-      height: 100vh;
+      height: 100%;
       width: 100%;
+      border: 1px solid #ccc;
     }
-    .info {
-      padding: 6px 8px;
-      background: white;
+
+    .floating-tooltip {
       position: absolute;
-      top: 10px;
-      right: 10px;
+      background: #ffffff;
+      padding: 8px 12px;
+      border-radius: 4px;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+      pointer-events: none;
+      font-size: 0.9rem;
+      display: none;
       z-index: 1000;
-      font-size: 14px;
     }
-    .legend {
-      background: white;
-      padding: 6px;
-    }
+
     .button-group {
       position: absolute;
-      top: 60px;
-      right: 10px;
+      top: 20px;
+      right: 20px;
+      z-index: 1001;
       background: white;
-      z-index: 1000;
+      border: 1px solid #ccc;
+      border-radius: 6px;
       padding: 6px;
+    }
+
+    .button-group button {
+      background: white;
+      border: none;
+      margin: 0 5px;
+      padding: 6px 12px;
+      font-size: 0.9rem;
+      cursor: pointer;
+      border-radius: 4px;
+      transition: background 0.2s ease;
+    }
+
+    .button-group button:hover {
+      background: #f0f0f0;
     }
   </style>
 </head>
 <body>
 
-<div id="map"></div>
-<div class="info" id="info">Hover over a pixel</div>
-<div class="button-group">
-  <button onclick="setMode('pixel')">Pixel</button>
-  <button onclick="setMode('county')">County</button>
-  <button onclick="setMode('country')">Country</button>
+<header>Interactive Climate Map</header>
+
+<div id="map-container">
+  <div id="map"></div>
+  <div class="floating-tooltip" id="tooltip"></div>
+  <div class="button-group">
+    <button onclick="setMode('pixel')">Pixel View</button>
+    <button onclick="setMode('county')">County View</button>
+  </div>
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-ajax/dist/leaflet.ajax.min.js"></script>
+
 <script>
+const map = L.map('map', {
+  zoomSnap: 0.25
+}).setView([39, -98], 4);
 
-// Mock data: 10x10 grid of pixel values from 0 to 100
-const pixelGrid = [];
-const nRows = 10;
-const nCols = 10;
-for (let i = 0; i < nRows; i++) {
-  for (let j = 0; j < nCols; j++) {
-    pixelGrid.push({
-      lat: 40 + i * 0.1,
-      lng: -100 + j * 0.1,
-      value: Math.floor(Math.random() * 100)
-    });
-  }
-}
-
-const map = L.map('map').setView([40.5, -99.5], 7);
-
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  attribution: '© OpenStreetMap contributors'
+// Basemap with faint country lines
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+  attribution: '© OpenStreetMap & CARTO',
+  maxZoom: 12,
+  minZoom: 3
 }).addTo(map);
 
+let currentLayer = null;
 let mode = 'pixel';
-let pixelLayer = null;
+
+const tooltip = document.getElementById('tooltip');
 
 function getColor(val) {
   return val > 80 ? '#800026' :
@@ -80,78 +114,81 @@ function getColor(val) {
                     '#FFEDA0';
 }
 
-function drawPixels() {
-  if (pixelLayer) {
-    map.removeLayer(pixelLayer);
-  }
-
-  pixelLayer = L.layerGroup();
-
-  pixelGrid.forEach(d => {
-    const rect = L.rectangle([
-      [d.lat, d.lng],
-      [d.lat + 0.1, d.lng + 0.1]
-    ], {
-      color: getColor(d.value),
-      weight: 0.5,
-      fillOpacity: 0.7
-    });
-
-    rect.on('mouseover', function() {
-      document.getElementById('info').innerHTML = 
-        `Pixel value: <strong>${d.value}</strong><br>Lat: ${d.lat.toFixed(2)}, Lng: ${d.lng.toFixed(2)}`;
-    });
-
-    rect.on('mouseout', function() {
-      document.getElementById('info').innerHTML = 'Hover over a pixel';
-    });
-
-    pixelLayer.addLayer(rect);
-  });
-
-  pixelLayer.addTo(map);
+function setMode(m) {
+  mode = m;
+  loadLayer();
 }
 
-function drawAggregation(level) {
-  if (pixelLayer) {
-    map.removeLayer(pixelLayer);
-  }
-
-  pixelLayer = L.layerGroup();
-
-  let regionValue;
-  if (level === 'county') {
-    regionValue = 65;
-  } else if (level === 'country') {
-    regionValue = 45;
-  }
-
-  const region = L.rectangle([[40, -100], [41, -99]], {
-    color: getColor(regionValue),
-    fillOpacity: 0.7
-  });
-
-  region.on('mouseover', () => {
-    document.getElementById('info').innerHTML = `${level} avg: <strong>${regionValue}</strong>`;
-  });
-
-  region.on('mouseout', () => {
-    document.getElementById('info').innerHTML = 'Hover over a pixel';
-  });
-
-  pixelLayer.addLayer(region);
-  pixelLayer.addTo(map);
+function showTooltip(content, event) {
+  tooltip.style.display = 'block';
+  tooltip.innerHTML = content;
+  tooltip.style.left = (event.containerPoint.x + 15) + 'px';
+  tooltip.style.top = (event.containerPoint.y + 15) + 'px';
 }
 
-function setMode(newMode) {
-  mode = newMode;
-  if (mode === 'pixel') drawPixels();
-  else drawAggregation(mode);
+function hideTooltip() {
+  tooltip.style.display = 'none';
 }
 
-// Initial draw
-drawPixels();
+function loadLayer() {
+  if (currentLayer) map.removeLayer(currentLayer);
+
+  if (mode === 'pixel') {
+    fetch("us_grid_data.json")
+      .then(res => res.json())
+      .then(data => {
+        const layer = L.layerGroup();
+        data.forEach(d => {
+          const rect = L.rectangle([
+            [d.lat, d.lng],
+            [d.lat + 0.25, d.lng + 0.25]
+          ], {
+            color: getColor(d.value),
+            fillOpacity: 0.7,
+            weight: 0
+          });
+
+          rect.on("mousemove", e => {
+            showTooltip(
+              `Pixel value: <strong>${d.value}</strong><br>Lat: ${d.lat}, Lng: ${d.lng}`, 
+              e.originalEvent
+            );
+          });
+
+          rect.on("mouseout", hideTooltip);
+          layer.addLayer(rect);
+        });
+        currentLayer = layer;
+        layer.addTo(map);
+      });
+  } else if (mode === 'county') {
+    const countyLayer = new L.GeoJSON.AJAX("county_averages.geojson", {
+      style: feature => ({
+        fillColor: getColor(feature.properties.value || 0),
+        weight: 0.5,
+        color: "#333",
+        fillOpacity: 0.7
+      }),
+      onEachFeature: (feature, layer) => {
+        layer.on("mousemove", e => {
+          showTooltip(
+            `County: <strong>${feature.properties.NAME}</strong><br>` +
+            `Avg value: ${feature.properties.value?.toFixed(2) || 'N/A'}`, 
+            e.originalEvent
+          );
+        });
+        layer.on("mouseout", hideTooltip);
+      }
+    });
+    currentLayer = countyLayer;
+    countyLayer.addTo(map);
+  }
+}
+
+// Load initial view
+loadLayer();
 
 </script>
 </body>
 </html>
+
