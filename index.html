@@ -107,6 +107,7 @@ let mode = 'pixel';
 const tooltip = document.getElementById('tooltip');
 
 function getColor(val) {
+  if (val === null || val === undefined || isNaN(val)) return null;  // make NA transparent
   return val > 80 ? '#800026' :
          val > 60 ? '#BD0026' :
          val > 40 ? '#E31A1C' :
@@ -163,12 +164,16 @@ function loadLayer() {
       });
   } else if (mode === 'county') {
     const countyLayer = new L.GeoJSON.AJAX("county_averages.geojson", {
-      style: feature => ({
-        fillColor: getColor(feature.properties.value || 0),
-        weight: 0.5,
-        color: "#333",
-        fillOpacity: 0.7
-      }),
+      style: feature => {
+          const color = getColor(feature.properties.value);
+          return {
+            fillColor: color || "#000000",  // fallback (won't matter since opacity is 0)
+            weight: 0.5,
+            color: "#333",
+            fillOpacity: color ? 0.7 : 0.0  // fully transparent if NA
+          };
+        }
+        ),
       onEachFeature: (feature, layer) => {
         layer.on("mousemove", e => {
           showTooltip(
