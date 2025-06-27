@@ -130,14 +130,9 @@ let countyHoverLayer = null;  // <--- add this here
 const tooltip = document.getElementById('tooltip');
 
 function getColor(val) {
-  if (val === null || val === undefined || isNaN(val) || val === 0) return null;  // Treat 0 as NA
-  return val > 80 ? '#800026' :
-         val > 60 ? '#BD0026' :
-         val > 40 ? '#E31A1C' :
-         val > 20 ? '#FC4E2A' :
-                    '#FFEDA0';
+  if (val === null || val === undefined || isNaN(val) || val === 0) return null;
+  return interpolateColor(val, 0, 100);
 }
-
 
 function setMode(m) {
   mode = m;
@@ -190,7 +185,25 @@ function showTooltip(content, event) {
 function hideTooltip() {
   tooltip.style.display = 'none';
 }
+  
+function interpolateColor(value, min, max) {
+  // clamp value between min and max
+  if (value <= min) return '#FFEDA0';  // light yellow
+  if (value >= max) return '#800026';  // dark red
 
+  const ratio = (value - min) / (max - min);
+
+  // interpolate RGB channels between light yellow and dark red
+  const start = [255, 237, 160];  // #FFEDA0
+  const end = [128, 0, 38];       // #800026
+
+  const r = Math.round(start[0] + ratio * (end[0] - start[0]));
+  const g = Math.round(start[1] + ratio * (end[1] - start[1]));
+  const b = Math.round(start[2] + ratio * (end[2] - start[2]));
+
+  return `rgb(${r},${g},${b})`;
+}
+  
 function loadLayer() {
   if (currentLayer) map.removeLayer(currentLayer);
 
