@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Interactive Pixel Map</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  />
+  <style>
+    #map {
+      height: 100vh;
+      width: 100%;
+    }
+    .info {
+      padding: 6px 8px;
+      background: white;
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      z-index: 1000;
+      font-size: 14px;
+    }
+    .legend {
+      background: white;
+      padding: 6px;
+    }
+    .button-group {
+      position: absolute;
+      top: 60px;
+      right: 10px;
+      background: white;
+      z-index: 1000;
+      padding: 6px;
+    }
+  </style>
+</head>
+<body>
+
+<div id="map"></div>
+<div class="info" id="info">Hover over a pixel</div>
+<div class="button-group">
+  <button onclick="setMode('pixel')">Pixel</button>
+  <button onclick="setMode('county')">County</button>
+  <button onclick="setMode('country')">Country</button>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+
+// Mock data: 10x10 grid of pixel values from 0 to 100
+const pixelGrid = [];
+const nRows = 10;
+const nCols = 10;
+for (let i = 0; i < nRows; i++) {
+  for (let j = 0; j < nCols; j++) {
+    pixelGrid.push({
+      lat: 40 + i * 0.1,
+      lng: -100 + j * 0.1,
+      value: Math.floor(Math.random() * 100)
+    });
+  }
+}
+
+const map = L.map('map').setView([40.5, -99.5], 7);
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '© OpenStreetMap contributors'
+}).addTo(map);
+
+let mode = 'pixel';
+let pixelLayer = null;
+
+function getColor(val) {
+  return val > 80 ? '#800026' :
+         val > 60 ? '#BD0026' :
+         val > 40 ? '#E31A1C' :
+         val > 20 ? '#FC4E2A' :
+                    '#FFEDA0';
+}
+
+function drawPixels() {
+  if (pixelLayer) {
+    map.removeLayer(pixelLayer);
+  }
+
+  pixelLayer = L.layerGroup();
+
+  pixelGrid.forEach(d => {
+    const rect = L.rectangle([
+      [d.lat, d.lng],
+      [d.lat + 0.1, d.lng + 0.1]
+    ], {
+      color: getColor(d.value),
+      weight: 0.5,
+      fillOpacity: 0.7
+    });
+
+    rect.on('mouseover', function() {
+      document.getElementById('info').innerHTML = 
+        `Pixel value: <strong>${d.value}</strong><br>Lat: ${d.lat.toFixed(2)}, Lng: ${d.lng.toFixed(2)}`;
+    });
+
+    rect.on('mouseout', function() {
+      document.getElementById('info').innerHTML = 'Hover over a pixel';
+    });
+
+    pixelLayer.addLayer(rect);
+  });
+
+  pixelLayer.addTo(map);
+}
+
+function drawAggregation(level) {
+  if (pixelLayer) {
+    map.removeLayer(pixelLayer);
+  }
+
+  pixelLayer = L.layerGroup();
+
+  let regionValue;
+  if (level === 'county') {
+    regionValue = 65;
+  } else if (level === 'country') {
+    regionValue = 45;
+  }
+
+  const region = L.rectangle([[40, -100], [41, -99]], {
+    color: getColor(regionValue),
+    fillOpacity: 0.7
+  });
+
+  region.on('mouseover', () => {
+    document.getElementById('info').innerHTML = `${level} avg: <strong>${regionValue}</strong>`;
+  });
+
+  region.on('mouseout', () => {
+    document.getElementById('info').innerHTML = 'Hover over a pixel';
+  });
+
+  pixelLayer.addLayer(region);
+  pixelLayer.addTo(map);
+}
+
+function setMode(newMode) {
+  mode = newMode;
+  if (mode === 'pixel') drawPixels();
+  else drawAggregation(mode);
+}
+
+// Initial draw
+drawPixels();
+
+</script>
+</body>
+</html>
