@@ -117,6 +117,7 @@ fetch('country_borders.geojson')
 
 let currentLayer = null;
 let mode = 'pixel';
+let countyHoverLayer = null;  // <--- add this here
 
 const tooltip = document.getElementById('tooltip');
 
@@ -133,6 +134,41 @@ function getColor(val) {
 function setMode(m) {
   mode = m;
   loadLayer();
+}
+  
+function loadCountyHoverLayer() {
+  if (countyHoverLayer) {
+    map.removeLayer(countyHoverLayer);
+  }
+
+  countyHoverLayer = new L.GeoJSON.AJAX("county_averages.geojson", {
+    style: {
+      fillOpacity: 0,
+      weight: 1,
+      color: '#333',
+      dashArray: '3',
+      interactive: true,
+    },
+    onEachFeature: (feature, layer) => {
+      layer.on('mouseover', e => {
+        layer.setStyle({
+          fillOpacity: 0.3,
+          fillColor: '#666',
+          weight: 2,
+        });
+        showTooltip(
+          `County: <strong>${feature.properties.NAME}</strong><br>` +
+          `Avg value: ${feature.properties.value?.toFixed(2) || 'N/A'}`,
+          e.originalEvent
+        );
+      });
+      layer.on('mouseout', e => {
+        countyHoverLayer.resetStyle(layer);
+        hideTooltip();
+      });
+    }
+  });
+  countyHoverLayer.addTo(map);
 }
 
 function showTooltip(content, event) {
