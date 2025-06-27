@@ -76,21 +76,10 @@
       background: #f0f0f0;
     }
 
-    .leaflet-tooltip {
-      background-color: white !important;   /* make tooltip background white */
-      color: #333 !important;                /* text color */
-      border: 1px solid #aaa !important;     /* subtle border */
-      box-shadow: 2px 2px 6px rgba(0,0,0,0.15);
-      font-size: 0.9rem;
-      padding: 4px 8px;
-      border-radius: 4px;
-    }
+    
   </style>
 </head>
 <body>
-
-<header>Interactive Climate Map</header>
-
 <div id="map-container">
   <div id="map"></div>
   <div class="floating-tooltip" id="tooltip"></div>
@@ -148,9 +137,10 @@ function setMode(m) {
 function showTooltip(content, event) {
   tooltip.style.display = 'block';
   tooltip.innerHTML = content;
-  tooltip.style.left = (event.containerPoint.x + 15) + 'px';
-  tooltip.style.top = (event.containerPoint.y + 15) + 'px';
+  tooltip.style.left = (event.pageX + 15) + 'px';
+  tooltip.style.top = (event.pageY + 15) + 'px';
 }
+
 
 function hideTooltip() {
   tooltip.style.display = 'none';
