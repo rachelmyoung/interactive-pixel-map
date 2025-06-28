@@ -276,26 +276,42 @@ function loadLayer() {
     currentLayer = countyLayer;
     countyLayer.addTo(map);
   } else if (mode === 'state') {
-  const stateLayer = new L.GeoJSON.AJAX("state_averages.geojson", {
-    style: feature => {
-      const color = getColor(feature.properties.value);
-      return {
-        fillColor: color || "#ccc",
-        weight: 1,
-        color: "#000",
-        fillOpacity: color ? 0.6 : 0
-      };
-    },
-    onEachFeature: (feature, layer) => {
-      layer.on("mousemove", e => {
-        showScatterplot(feature.properties.NAME, e.originalEvent.pageX, e.originalEvent.pageY);
+  fetch("us_grid_data.json")
+    .then(res => res.json())
+    .then(pixels => {
+      const stateLayer = new L.GeoJSON.AJAX("state_averages.geojson", {
+        style: feature => {
+          const color = getColor(feature.properties.value);
+          return {
+            fillColor: color || "#ccc",
+            weight: 1,
+            color: "#000",
+            fillOpacity: color ? 0.6 : 0
+          };
+        },
+        onEachFeature: (feature, layer) => {
+          layer.on("mousemove", e => {
+            const bounds = layer.getBounds();
+            const values = pixels
+              .filter(p =>
+                p.lng >= bounds.getWest() && p.lng <= bounds.getEast() &&
+                p.lat >= bounds.getSouth() && p.lat <= bounds.getNorth()
+              )
+              .map(p => [Math.random(), Math.random()]); // Replace with scaled values if needed
+
+            showScatterplot(
+              `${feature.properties.NAME} (${feature.properties.value?.toFixed(2) || 'N/A'})`,
+              values,
+              e.originalEvent.pageX,
+              e.originalEvent.pageY
+            );
+          });
+          layer.on("mouseout", hideScatterplot);
+        }
       });
-      layer.on("mouseout", hideScatterplot);
-    }
-  });
-  currentLayer = stateLayer;
-  stateLayer.addTo(map);
-}
+      currentLayer = stateLayer;
+      stateLayer.addTo(map);
+    });
 }
 function showScatterplot(stateName, values, x, y) {
   const container = document.getElementById('scatter-container');
