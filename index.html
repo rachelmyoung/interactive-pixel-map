@@ -277,12 +277,15 @@ function loadLayer() {
     countyLayer.addTo(map);
   } else if (mode === 'state') {
   const stateLayer = new L.GeoJSON.AJAX("state_averages.geojson", {
-    style: feature => ({
-      fillColor: "#fff",
-      weight: 1,
-      color: "#000",
-      fillOpacity: 0
-    }),
+    style: feature => {
+      const color = getColor(feature.properties.value);
+      return {
+        fillColor: color || "#ccc",
+        weight: 1,
+        color: "#000",
+        fillOpacity: color ? 0.6 : 0
+      };
+    },
     onEachFeature: (feature, layer) => {
       layer.on("mousemove", e => {
         showScatterplot(feature.properties.NAME, e.originalEvent.pageX, e.originalEvent.pageY);
