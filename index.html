@@ -294,8 +294,59 @@ function loadLayer() {
   stateLayer.addTo(map);
 }
 }
+function showScatterplot(stateName, values, x, y) {
+  const container = document.getElementById('scatter-container');
+  container.style.left = (x + 15) + 'px';
+  container.style.top = (y + 15) + 'px';
+  container.style.display = 'block';
 
-function showScatterplot(stateName, x, y) {
+  const canvas = document.getElementById('scatter-canvas');
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Plot scatter points
+  ctx.fillStyle = "#BD0026";
+  values.forEach(([px, py]) => {
+    const cx = px * canvas.width;
+    const cy = canvas.height - py * canvas.height; // invert y-axis
+    ctx.beginPath();
+    ctx.arc(cx, cy, 2, 0, 2 * Math.PI);
+    ctx.fill();
+  });
+
+  // Draw regression line if enough points
+  const n = values.length;
+  if (n > 1) {
+    let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
+    values.forEach(([x, y]) => {
+      sumX += x;
+      sumY += y;
+      sumXY += x * y;
+      sumX2 += x * x;
+    });
+    const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+    const intercept = (sumY - slope * sumX) / n;
+
+    // Line from x=0 to x=1
+    const x0 = 0, x1 = 1;
+    const y0 = intercept;
+    const y1 = slope * x1 + intercept;
+
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(x0 * canvas.width, canvas.height - y0 * canvas.height);
+    ctx.lineTo(x1 * canvas.width, canvas.height - y1 * canvas.height);
+    ctx.stroke();
+  }
+
+  // Add title
+  ctx.fillStyle = "#333";
+  ctx.font = "10px Inter";
+  ctx.fillText(stateName, 5, 10);
+}
+
+/*function showScatterplot(stateName, x, y) {
   const container = document.getElementById('scatter-container');
   container.style.left = (x + 15) + 'px';
   container.style.top = (y + 15) + 'px';
@@ -319,7 +370,7 @@ function showScatterplot(stateName, x, y) {
   ctx.font = "10px Inter";
   ctx.fillText(stateName, 5, 10);
 }
-
+*/
 function hideScatterplot() {
   document.getElementById('scatter-container').style.display = 'none';
 }
